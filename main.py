@@ -36,7 +36,7 @@ def load_init():
     return stack,memory,storage
 
 if __name__ == "__main__":
-    DEBUG_Point = 0x1005
+    DEBUG_Point = 0x1072
     f = open("runing_log.py","w",encoding="utf-8")
     opcodes = load_opcodes()
     stack,memory,storage = load_init()

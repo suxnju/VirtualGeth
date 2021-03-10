@@ -1,116 +1,10 @@
 from typing import List,Dict
 from .utils import keccak256
 
-class Constant:
-	MODULO = 2**256
-	UPPER_UINT256 = 2**256 - 1
-
-	msg_caller = int("0x5dc12131e65b8f395ab11a2c4e6af717e1b179ba",16)
-	msg_value = 0
-	timestamp = int("0x708",16)
-
-class EVM_stack:
-	def __init__(self,stack:List[int]):
-		self.stack = stack
-	
-	def __len__(self) -> int:
-		return len(self.stack)
-
-	# def __str__(self) -> str:
-	# 	return "\n".join([
-	# 			hex(v).strip("0x").rjust(64,"0")
-	# 			for v in self.stack
-	# 		]
-	# 	)
-
-	def __str__(self) -> str:
-		return ",".join([
-			hex(v) for v in self.stack
-		])
-
-	def _top_bytes(self,read_cnt:int=1) -> List[int]:
-		assert len(self.stack) >= read_cnt
-
-		if read_cnt == 1:
-			return self.stack[0]
-		return self.stack[:read_cnt]
-
-	def _pop_bytes(self,read_cnt:int=1) -> List[int]:
-		assert len(self.stack) >= read_cnt
-
-		top_bytes = self.stack[:read_cnt]
-		self.stack = self.stack[read_cnt:]
-
-		if read_cnt == 1:
-			return top_bytes[0]
-		return top_bytes
-
-	def _push_byte(self,value:int):
-		self.stack = [value] + self.stack
-
-	def _swap_byte(self,s_index=0,e_index=1):
-		assert len(self.stack) > e_index
-
-		tmp = self.stack[s_index]
-		self.stack[e_index] = self.stack[s_index]
-		self.stack[s_index] = tmp
-
-class EVM_memory:
-	def __init__(self,memory:Dict):
-		self.memory = memory
-	
-	def __str__(self):
-		return ",".join([
-			hex(self.memory[i]) for i in range(10) if i in self.memory.keys()
-			]
-		)
-
-	def set_value(self,offset:int,value:int):
-		assert offset % 32 == 0
-
-		self.memory[offset//32] = value
-
-	def get(self,offset:int) -> int:
-		assert offset % 32 == 0
-
-		return self.memory[offset//32]
-
-	def getConcat(self,offset:int,length:int) -> str:
-		assert offset % 32 == 0
-		bytes_count = length // 32
-		
-		result = ""
-		for i in range(offset//32,offset//32+bytes_count):
-			result += hex(self.memory[i]).strip("0x").rjust(64,"0")
-		
-		return result
-
-class EVM_storage:
-	def __init__(self,storage:Dict):
-		self.storage = storage
-
-	def __str__(self):
-		return ",".join(
-			[
-				hex(self.storage[i]) for i in range(12) if i in self.storage.keys()
-			]
-		)
-
-	def get(self,key:int) -> int:
-		# assert key in self.storage.keys()
-		if key in self.storage.keys():
-			return self.storage[key]
-		else:
-			return 0
-	
-	def set_key(self,key:int,value:int):
-		self.storage[key] = value
-
-class Transaction:
-	From = int("0x5dc12131e65b8f395ab11a2c4e6af717e1b179ba",16)
-	To = int("0xa8f9c7ff9f605f401bde6659fd18d9a0d0a802c5",16)
-	Value = 50000000000000000
-	Input = int("0xfe1f6a0bd579d4fe1e90a03d545e3d8c01dfc19c2ae3b26ad26ba994a1dec89a435a3dc00000000000000000000000000000000000000000000000000000000000000000",16)
+from Constant import Constant
+from Stack import EVM_stack
+from Memory import EVM_memory
+from Storage import EVM_storage
 
 class EVM:
 	def __init__(self,Stack:EVM_stack,Memory:EVM_memory,Storage:EVM_storage):
@@ -569,7 +463,9 @@ class EVM:
 			value=memory[offset:offset+32] \\
 			reads a (u)int256 from memory
 		'''
-		raise ValueError('Not implement MLOAD error!')
+		offset = self.Stack._pop_bytes()
+		value = self.Memory.get(offset)
+		self.Stack._push_byte(value)
 
 	def MSTORE(self):
 		'''
