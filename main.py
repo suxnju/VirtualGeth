@@ -1,5 +1,7 @@
 from Structure.EVM import EVM,EVM_stack,EVM_memory,EVM_storage
 
+import logging
+
 def load_opcodes():
     opcodes = []
     with open("./data.txt","r",encoding="utf-8") as f:
@@ -34,7 +36,8 @@ def load_init():
     return stack,memory,storage
 
 if __name__ == "__main__":
-    DEBUG_POINT = 0xfab
+    DEBUG_Point = 0x1005
+    f = open("runing_log.py","w",encoding="utf-8")
     opcodes = load_opcodes()
     stack,memory,storage = load_init()
     evm = EVM(
@@ -43,11 +46,12 @@ if __name__ == "__main__":
         Storage=EVM_storage(storage)
     )
     for opcode in opcodes:
-        if int(opcode[0],16) == DEBUG_POINT:
-            print(str(evm.Stack))
-            print()
-            
-        if opcode[2] is not None:
-            evm.args = opcode[2]
+        f.write("\tstack:[%s]\n\tmemory:[%s]\n\tstorage:[%s]\n\n%s\n"%(str(evm.Stack),str(evm.Memory),str(evm.Storage),opcode))
+        f.flush()
+        if int(opcode[0],16) == DEBUG_Point:
+            break
+        evm.args = opcode[2]
         eval_function = "evm.%s()"%opcode[1]
         eval(eval_function)
+
+    f.close()

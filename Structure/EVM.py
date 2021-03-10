@@ -5,7 +5,9 @@ class Constant:
 	MODULO = 2**256
 	UPPER_UINT256 = 2**256 - 1
 
-	msg_caller = int("0xa8f9c7ff9f605f401bde6659fd18d9a0d0a802c5",16)
+	msg_caller = int("0x5dc12131e65b8f395ab11a2c4e6af717e1b179ba",16)
+	msg_value = 0
+	timestamp = int("0x708",16)
 
 class EVM_stack:
 	def __init__(self,stack:List[int]):
@@ -14,12 +16,17 @@ class EVM_stack:
 	def __len__(self) -> int:
 		return len(self.stack)
 
+	# def __str__(self) -> str:
+	# 	return "\n".join([
+	# 			hex(v).strip("0x").rjust(64,"0")
+	# 			for v in self.stack
+	# 		]
+	# 	)
+
 	def __str__(self) -> str:
-		return "\n".join([
-				hex(v).strip("0x").rjust(64,"0")
-				for v in self.stack
-			]
-		)
+		return ",".join([
+			hex(v) for v in self.stack
+		])
 
 	def _top_bytes(self,read_cnt:int=1) -> List[int]:
 		assert len(self.stack) >= read_cnt
@@ -41,9 +48,22 @@ class EVM_stack:
 	def _push_byte(self,value:int):
 		self.stack = [value] + self.stack
 
+	def _swap_byte(self,s_index=0,e_index=1):
+		assert len(self.stack) > e_index
+
+		tmp = self.stack[s_index]
+		self.stack[e_index] = self.stack[s_index]
+		self.stack[s_index] = tmp
+
 class EVM_memory:
 	def __init__(self,memory:Dict):
 		self.memory = memory
+	
+	def __str__(self):
+		return ",".join([
+			hex(self.memory[i]) for i in range(10) if i in self.memory.keys()
+			]
+		)
 
 	def set_value(self,offset:int,value:int):
 		assert offset % 32 == 0
@@ -57,17 +77,24 @@ class EVM_memory:
 
 	def getConcat(self,offset:int,length:int) -> str:
 		assert offset % 32 == 0
-		memory_block_count = length // 32
+		bytes_count = length // 32
 		
 		result = ""
-		for i in range(offset//32,offset//32+memory_block_count):
-			result += hex(self.memory[i]).strip("0x").rjust(64)
+		for i in range(offset//32,offset//32+bytes_count):
+			result += hex(self.memory[i]).strip("0x").rjust(64,"0")
 		
 		return result
 
 class EVM_storage:
 	def __init__(self,storage:Dict):
 		self.storage = storage
+
+	def __str__(self):
+		return ",".join(
+			[
+				hex(self.storage[i]) for i in range(12) if i in self.storage.keys()
+			]
+		)
 
 	def get(self,key:int) -> int:
 		# assert key in self.storage.keys()
@@ -123,7 +150,12 @@ class EVM:
 			a*b \\
 			(u)int256 multiplication modulo 2**256
 		'''
-		raise ValueError('Not implement MUL error!')
+		assert len(self.Stack) >= 2
+		a,b = self.Stack._pop_bytes(2)
+		c = a * b
+		c = c%Constant.MODULO
+		
+		self.Stack._push_byte(c)
 
 	def SUB(self):
 		'''
@@ -131,7 +163,12 @@ class EVM:
 			a-b \\
 			(u)int256 subtraction modulo 2**256
 		'''
-		raise ValueError('Not implement SUB error!')
+		assert len(self.Stack) >= 2
+		a,b = self.Stack._pop_bytes(2)
+		c = a - b
+		c = c%Constant.MODULO
+		
+		self.Stack._push_byte(c)
 
 	def DIV(self):
 		'''
@@ -139,7 +176,14 @@ class EVM:
 			a//b \\
 			uint256 division
 		'''
-		raise ValueError('Not implement DIV error!')
+		assert len(self.Stack) >= 2
+		a,b = self.Stack._pop_bytes(2)
+		c = a / b
+		if c>Constant.MODULO:
+			logging.warning("Integer overflow")
+		c = c%Constant.MODULO
+		
+		self.Stack._push_byte(c)
 
 	def SDIV(self):
 		'''
@@ -187,7 +231,12 @@ class EVM:
 			a**b \\
 			uint256 exponentiation modulo 2**256
 		'''
-		raise ValueError('Not implement EXP error!')
+		assert len(self.Stack) >= 2
+		a,b = self.Stack._pop_bytes(2)
+		c = a ** b
+		c = c%Constant.MODULO
+		
+		self.Stack._push_byte(c)
 
 	def SIGNEXTEND(self):
 		'''
@@ -195,7 +244,14 @@ class EVM:
 			y=SIGNEXTEND(x,b) \\
 			sign extends x from (b + 1) * 8 bits to 256 bits.
 		'''
-		raise ValueError('Not implement SIGNEXTEND error!')
+		b,x = self.Stack._pop_bytes(2)
+		pos = 8 * (b + 1)
+		sign_bit = (1 << pos-1)
+		if x & sign_bit:
+			y = x | (UPPER - sign_bit)
+		else:
+			y = x & (sign_bit - 1)
+		self.Stack._push_byte(y)
 
 	def LT(self):
 		'''
@@ -278,7 +334,7 @@ class EVM:
 			256-bit bitwise not
 		'''
 		a = self.Stack._pop_bytes()
-	self.Stack._push_byte(~a)
+		self.Stack._push_byte(~a)
 
 	def BYTE(self):
 		'''
@@ -320,7 +376,7 @@ class EVM:
 		'''
 		offset,length = self.Stack._pop_bytes(2)
 		to_hash = self.Memory.getConcat(offset,length)
-		value = int(keccak256(to_hash),16)
+		value = int(keccak256(to_hash,is_hex=True),16)
 		self.Stack._push_byte(value)
 
 	def ADDRESS(self):
@@ -361,7 +417,7 @@ class EVM:
 			msg.value \\
 			message funds in wei
 		'''
-		raise ValueError('Not implement CALLVALUE error!')
+		self.Stack._push_byte(Constant.msg_value)
 
 	def CALLDATALOAD(self):
 		'''
@@ -473,7 +529,7 @@ class EVM:
 			block.timestamp \\
 			current block's Unix timestamp in seconds
 		'''
-		raise ValueError('Not implement TIMESTAMP error!')
+		self.Stack._push_byte(Constant.timestamp)
 
 	def NUMBER(self):
 		'''
@@ -613,7 +669,7 @@ class EVM:
 			PUSH(uint16) \\
 			pushes a 2-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH2 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH3(self):
 		'''
@@ -621,7 +677,7 @@ class EVM:
 			PUSH(uint24) \\
 			pushes a 3-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH3 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH4(self):
 		'''
@@ -629,7 +685,7 @@ class EVM:
 			PUSH(uint32) \\
 			pushes a 4-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH4 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH5(self):
 		'''
@@ -637,7 +693,7 @@ class EVM:
 			PUSH(uint40) \\
 			pushes a 5-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH5 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH6(self):
 		'''
@@ -645,7 +701,7 @@ class EVM:
 			PUSH(uint48) \\
 			pushes a 6-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH6 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH7(self):
 		'''
@@ -653,7 +709,7 @@ class EVM:
 			PUSH(uint56) \\
 			pushes a 7-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH7 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH8(self):
 		'''
@@ -661,7 +717,7 @@ class EVM:
 			PUSH(uint64) \\
 			pushes a 8-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH8 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH9(self):
 		'''
@@ -669,7 +725,7 @@ class EVM:
 			PUSH(uint72) \\
 			pushes a 9-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH9 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH10(self):
 		'''
@@ -677,7 +733,7 @@ class EVM:
 			PUSH(uint80) \\
 			pushes a 10-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH10 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH11(self):
 		'''
@@ -685,7 +741,7 @@ class EVM:
 			PUSH(uint88) \\
 			pushes a 11-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH11 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH12(self):
 		'''
@@ -693,7 +749,7 @@ class EVM:
 			PUSH(uint96) \\
 			pushes a 12-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH12 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH13(self):
 		'''
@@ -701,7 +757,7 @@ class EVM:
 			PUSH(uint104) \\
 			pushes a 13-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH13 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH14(self):
 		'''
@@ -709,7 +765,7 @@ class EVM:
 			PUSH(uint112) \\
 			pushes a 14-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH14 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH15(self):
 		'''
@@ -717,7 +773,7 @@ class EVM:
 			PUSH(uint120) \\
 			pushes a 15-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH15 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH16(self):
 		'''
@@ -725,7 +781,7 @@ class EVM:
 			PUSH(uint128) \\
 			pushes a 16-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH16 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH17(self):
 		'''
@@ -733,7 +789,7 @@ class EVM:
 			PUSH(uint136) \\
 			pushes a 17-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH17 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH18(self):
 		'''
@@ -741,7 +797,7 @@ class EVM:
 			PUSH(uint144) \\
 			pushes a 18-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH18 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH19(self):
 		'''
@@ -749,7 +805,7 @@ class EVM:
 			PUSH(uint152) \\
 			pushes a 19-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH19 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH20(self):
 		'''
@@ -765,7 +821,7 @@ class EVM:
 			PUSH(uint168) \\
 			pushes a 21-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH21 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH22(self):
 		'''
@@ -773,7 +829,7 @@ class EVM:
 			PUSH(uint176) \\
 			pushes a 22-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH22 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH23(self):
 		'''
@@ -781,7 +837,7 @@ class EVM:
 			PUSH(uint184) \\
 			pushes a 23-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH23 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH24(self):
 		'''
@@ -789,7 +845,7 @@ class EVM:
 			PUSH(uint192) \\
 			pushes a 24-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH24 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH25(self):
 		'''
@@ -797,7 +853,7 @@ class EVM:
 			PUSH(uint200) \\
 			pushes a 25-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH25 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH26(self):
 		'''
@@ -805,7 +861,7 @@ class EVM:
 			PUSH(uint208) \\
 			pushes a 26-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH26 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH27(self):
 		'''
@@ -813,7 +869,7 @@ class EVM:
 			PUSH(uint216) \\
 			pushes a 27-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH27 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH28(self):
 		'''
@@ -821,7 +877,7 @@ class EVM:
 			PUSH(uint224) \\
 			pushes a 28-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH28 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH29(self):
 		'''
@@ -829,7 +885,7 @@ class EVM:
 			PUSH(uint232) \\
 			pushes a 29-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH29 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH30(self):
 		'''
@@ -837,7 +893,7 @@ class EVM:
 			PUSH(uint240) \\
 			pushes a 30-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH30 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH31(self):
 		'''
@@ -845,7 +901,7 @@ class EVM:
 			PUSH(uint248) \\
 			pushes a 31-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH31 error!')
+		self.Stack._push_byte(self.args)
 
 	def PUSH32(self):
 		'''
@@ -853,7 +909,7 @@ class EVM:
 			PUSH(uint256) \\
 			pushes a 32-byte value onto the stack
 		'''
-		raise ValueError('Not implement PUSH32 error!')
+		self.Stack._push_byte(self.args)
 
 	def DUP1(self):
 		'''
@@ -897,7 +953,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 5th last value on the stack
 		'''
-		raise ValueError('Not implement DUP5 error!')
+		value = self.Stack._top_bytes(read_cnt=5)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP6(self):
 		'''
@@ -914,7 +971,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 7th last value on the stack
 		'''
-		raise ValueError('Not implement DUP7 error!')
+		value = self.Stack._top_bytes(read_cnt=7)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP8(self):
 		'''
@@ -922,7 +980,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 8th last value on the stack
 		'''
-		raise ValueError('Not implement DUP8 error!')
+		value = self.Stack._top_bytes(read_cnt=8)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP9(self):
 		'''
@@ -930,7 +989,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 9th last value on the stack
 		'''
-		raise ValueError('Not implement DUP9 error!')
+		value = self.Stack._top_bytes(read_cnt=9)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP10(self):
 		'''
@@ -938,7 +998,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 10th last value on the stack
 		'''
-		raise ValueError('Not implement DUP10 error!')
+		value = self.Stack._top_bytes(read_cnt=10)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP11(self):
 		'''
@@ -946,7 +1007,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 11th last value on the stack
 		'''
-		raise ValueError('Not implement DUP11 error!')
+		value = self.Stack._top_bytes(read_cnt=11)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP12(self):
 		'''
@@ -954,7 +1016,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 12th last value on the stack
 		'''
-		raise ValueError('Not implement DUP12 error!')
+		value = self.Stack._top_bytes(read_cnt=12)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP13(self):
 		'''
@@ -962,7 +1025,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 13th last value on the stack
 		'''
-		raise ValueError('Not implement DUP13 error!')
+		value = self.Stack._top_bytes(read_cnt=13)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP14(self):
 		'''
@@ -970,7 +1034,8 @@ class EVM:
 			PUSH(value) \\
 			clones the 14th last value on the stack
 		'''
-		raise ValueError('Not implement DUP14 error!')
+		value = self.Stack._top_bytes(read_cnt=14)[-1]
+		self.Stack._push_byte(value)
 
 	def DUP15(self):
 		'''
@@ -978,15 +1043,17 @@ class EVM:
 			PUSH(value) \\
 			clones the 15th last value on the stack
 		'''
-		raise ValueError('Not implement DUP15 error!')
-
+		value = self.Stack._top_bytes(read_cnt=15)[-1]
+		self.Stack._push_byte(value)
+	
 	def DUP16(self):
 		'''
 			8F \\
 			PUSH(value) \\
 			clones the 16th last value on the stack
 		'''
-		raise ValueError('Not implement DUP16 error!')
+		value = self.Stack._top_bytes(read_cnt=16)[-1]
+		self.Stack._push_byte(value)
 
 	def SWAP1(self):
 		'''
@@ -994,9 +1061,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the last two values on the stack
 		'''
-		a,b = self.Stack._pop_bytes(2)
-		self.Stack._push_byte(a)
-		self.Stack._push_byte(b)
+		self.Stack._swap_byte(e_index=1)
 
 	def SWAP2(self):
 		'''
@@ -1004,7 +1069,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 3rd last element
 		'''
-		raise ValueError('Not implement SWAP2 error!')
+		self.Stack._swap_byte(e_index=2)
 
 	def SWAP3(self):
 		'''
@@ -1012,7 +1077,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 4th last element
 		'''
-		raise ValueError('Not implement SWAP3 error!')
+		self.Stack._swap_byte(e_index=3)
 
 	def SWAP4(self):
 		'''
@@ -1020,7 +1085,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 5th last element
 		'''
-		raise ValueError('Not implement SWAP4 error!')
+		self.Stack._swap_byte(e_index=4)
 
 	def SWAP5(self):
 		'''
@@ -1028,7 +1093,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 6th last element
 		'''
-		raise ValueError('Not implement SWAP5 error!')
+		self.Stack._swap_byte(e_index=5)
 
 	def SWAP6(self):
 		'''
@@ -1036,7 +1101,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 7th last element
 		'''
-		raise ValueError('Not implement SWAP6 error!')
+		self.Stack._swap_byte(e_index=6)
 
 	def SWAP7(self):
 		'''
@@ -1044,7 +1109,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 8th last element
 		'''
-		raise ValueError('Not implement SWAP7 error!')
+		self.Stack._swap_byte(e_index=7)
 
 	def SWAP8(self):
 		'''
@@ -1052,7 +1117,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 9th last element
 		'''
-		raise ValueError('Not implement SWAP8 error!')
+		self.Stack._swap_byte(e_index=8)
 
 	def SWAP9(self):
 		'''
@@ -1060,7 +1125,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 10th last element
 		'''
-		raise ValueError('Not implement SWAP9 error!')
+		self.Stack._swap_byte(e_index=9)
 
 	def SWAP10(self):
 		'''
@@ -1068,7 +1133,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 11th last element
 		'''
-		raise ValueError('Not implement SWAP10 error!')
+		self.Stack._swap_byte(e_index=10)
 
 	def SWAP11(self):
 		'''
@@ -1076,7 +1141,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 12th last element
 		'''
-		raise ValueError('Not implement SWAP11 error!')
+		self.Stack._swap_byte(e_index=11)
 
 	def SWAP12(self):
 		'''
@@ -1084,7 +1149,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 13th last element
 		'''
-		raise ValueError('Not implement SWAP12 error!')
+		self.Stack._swap_byte(e_index=12)
 
 	def SWAP13(self):
 		'''
@@ -1092,7 +1157,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 14th last element
 		'''
-		raise ValueError('Not implement SWAP13 error!')
+		self.Stack._swap_byte(e_index=13)
 
 	def SWAP14(self):
 		'''
@@ -1100,7 +1165,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 15th last element
 		'''
-		raise ValueError('Not implement SWAP14 error!')
+		self.Stack._swap_byte(e_index=14)
 
 	def SWAP15(self):
 		'''
@@ -1108,7 +1173,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 16th last element
 		'''
-		raise ValueError('Not implement SWAP15 error!')
+		self.Stack._swap_byte(e_index=15)
 
 	def SWAP16(self):
 		'''
@@ -1116,7 +1181,7 @@ class EVM:
 			a,b=b,a \\
 			swaps the top of the stack with the 17th last element
 		'''
-		raise ValueError('Not implement SWAP16 error!')
+		self.Stack._swap_byte(e_index=16)
 
 	def LOG0(self):
 		'''
