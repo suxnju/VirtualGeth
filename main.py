@@ -6,7 +6,7 @@ def load_opcodes():
     opcodes = []
     with open("./data.txt","r",encoding="utf-8") as f:
         for line in f.readlines():
-            line = line.rstrip("\n").split(" ")
+            line = line.strip().split(" ")
             opcode = line[1]
             if len(line) > 2:
                 args = int(line[-1],16)
@@ -16,6 +16,7 @@ def load_opcodes():
     return opcodes
 
 def load_init():
+    """After Constructor Function"""
     stack = [0,0,0,int('0xd579d4fe1e90a03d545e3d8c01dfc19c2ae3b26ad26ba994a1dec89a435a3dc0',16),int('0x2b8',16),int("0xfe1f6a0b",16)]
     memory = {
         0:0,
@@ -40,7 +41,6 @@ def load_init():
     return stack,memory,storage
 
 if __name__ == "__main__":
-    DEBUG_Point = 0x1025
     f = open("runing_log.py","w",encoding="utf-8")
     opcodes = load_opcodes()
     stack,memory,storage = load_init()
@@ -50,6 +50,9 @@ if __name__ == "__main__":
         Storage=EVM_storage(storage)
     )
     for opcode in opcodes:
+        if int(opcode[0],16) != evm.pc:
+            continue
+
         f.write("stack:[%s]\nmemory:%s\nstorage:%s\n%s\n\n"%(str(evm.Stack),str(evm.Memory),str(evm.Storage),"="*10+str(opcode)+"="*10))
         f.flush()
         if int(opcode[0],16) == DEBUG_Point:

@@ -6,6 +6,8 @@ class Constant:
 
 	msg_caller = Transaction.From
 	msg_value = Transaction.Value
+	msg_input = Transaction.Input
+	
 	timestamp = Transaction.Timestamp
 
 OPCODE_TO_INSTR  = {
