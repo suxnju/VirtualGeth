@@ -19,21 +19,22 @@ for tr in trs:
     Mnemonic = tds[1].xpath("string(.)").strip()
     Expression = tds[-2].xpath("string(.)").strip().replace("\n","").replace(" ","")
     Notes = tds[-1].xpath("string(.)").strip()
-    if Mnemonic != "Invalid":
-        format_function = """\
-def {}(self):
-    '''
-        {} \\\\
-        {} \\\\
-        {}
-    '''
-    raise ValueError('Not implement {} error!')
+    if Mnemonic == "Invalid":
+        continue
+#         format_function = """\
+# def {}(self):
+#     '''
+#         {} \\\\
+#         {} \\\\
+#         {}
+#     '''
+#     raise ValueError('Not implement {} error!')
 
-"""
-        f.write(format_function.format(Mnemonic,Opcode,Expression,Notes,Mnemonic))
-        f.flush()
+# """
+        # f.write(format_function.format(Mnemonic,Opcode,Expression,Notes,Mnemonic))
+        # f.flush()
         # print()
-        # f.write('\t"%s":(0x%s,"%s","%s",%s),\n'%(Mnemonic,Opcode,Expression,Notes,Mnemonic))
+    f.write('\t"%s":(0x%s,"%s","%s"),\n'%(Mnemonic, Opcode, Expression, Notes))
         # OpcodeList.append(Mnemonic)
     # f.flush()
 

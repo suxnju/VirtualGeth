@@ -56,6 +56,7 @@ if __name__ == "__main__":
             print()
         evm.args = opcode[2]
         eval_function = "evm.%s()"%opcode[1]
+        
         eval(eval_function)
 
     f.close()

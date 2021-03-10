@@ -1,14 +1,3 @@
-from .Transaction import Transaction
-
-class Constant:
-	MODULO = 2**256
-	UPPER_UINT256 = 2**256 - 1
-
-	msg_caller = Transaction.From
-	msg_value = Transaction.Value
-	timestamp = Transaction.Timestamp
-
-OPCODE_TO_INSTR  = {
 	"STOP":(0x00,"STOP()","halts execution of the contract"),
 	"ADD":(0x01,"a+b","(u)int256 addition modulo 2**256"),
 	"MUL":(0x02,"a*b","(u)int256 multiplication modulo 2**256"),
@@ -150,5 +139,4 @@ OPCODE_TO_INSTR  = {
 	"CREATE2":(0xF5,"addr=newmemory[offset:offset+length].value(value)","creates a child contract with a deterministic address, see EIP-1014"),
 	"STATICCALL":(0xFA,"success,memory[retOffset:retOffset+retLength]=address(addr).staticcall.gas(gas)(memory[argsOffset:argsOffset+argsLength])","calls a method in another contract with state changes such as contract creation, event emission, storage modification and contract destruction disallowed, see EIP-214"),
 	"REVERT":(0xFD,"revert(memory[offset:offset+length])","reverts with return data"),
-	"SELFDESTRUCT":(0xFF,"selfdestruct(address(addr))","destroys the contract and sends all funds to addr.")
-}
+	"SELFDESTRUCT":(0xFF,"selfdestruct(address(addr))","destroys the contract and sends all funds to addr."),
