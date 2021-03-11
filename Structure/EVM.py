@@ -6,18 +6,31 @@ from .Stack import EVM_stack
 from .Memory import EVM_memory
 from .Storage import EVM_storage
 
+from .Transaction import Transaction
+
 import logging
 
-logging.basicConfig(filename="./LOG.log",level=logging.INFO,filemode='a')
+# logging.basicConfig(filename="./LOG.log",level=logging.INFO,filemode='a')
 
 class EVM:
-	def __init__(self,Stack:EVM_stack,Memory:EVM_memory,Storage:EVM_storage):
-		self.Stack = Stack
-		self.Memory = Memory
+	def __init__(self,Storage:EVM_storage,Stack:EVM_stack=None,Memory:EVM_memory=None,Transaction:Transaction=None):
 		self.Storage = Storage
+		if Stack is None:
+			self.Stack = EVM_stack([])
+		else:
+			self.Stack = Stack
+		if Memory is None:
+			self.Memory = EVM_memory({})
+		else:	
+			self.Memory = Memory
 
 		self.pc = 0
 		self.args = None
+
+		self.Transaction = Transaction
+
+		self.readStorage = []
+		self.writeStorage = []
 
 	def STOP(self):
 		'''
@@ -311,7 +324,7 @@ class EVM:
 			msg.caller \\
 			message caller address
 		'''
-		self.Stack._push_byte(Constant.msg_caller)
+		self.Stack._push_byte(self.Transaction.get("msg_caller"))
 
 	def CALLVALUE(self):
 		'''
@@ -319,7 +332,7 @@ class EVM:
 			msg.value \\
 			message funds in wei
 		'''
-		self.Stack._push_byte(Constant.msg_value)
+		self.Stack._push_byte(self.Transaction.get("msg_value"))
 
 	def CALLDATALOAD(self):
 		'''
@@ -328,7 +341,7 @@ class EVM:
 			reads a (u)int256 from message data
 		'''
 		i = self.Stack._pop_bytes()
-		INPUT = hex(Constant.msg_input).lstrip("0x")
+		INPUT = hex(self.Transaction.get("msg_input")).lstrip("0x")
 		data = INPUT[i:i+64]
 		self.Stack._push_byte(int(data,16))
 
@@ -338,7 +351,7 @@ class EVM:
 			msg.data.size \\
 			message data length in bytes
 		'''
-		INPUT = hex(Constant.msg_input).lstrip("0x")
+		INPUT = hex(self.Transaction.get("msg_input")).lstrip("0x")
 		self.Stack._push_byte(int(len(INPUT)/2))
 
 	def CALLDATACOPY(self):
@@ -436,7 +449,7 @@ class EVM:
 			block.timestamp \\
 			current block's Unix timestamp in seconds
 		'''
-		self.Stack._push_byte(Constant.timestamp)
+		self.Stack._push_byte(self.Transaction.get("timestamp"))
 
 	def NUMBER(self):
 		'''
@@ -505,6 +518,9 @@ class EVM:
 		'''
 		key = self.Stack._pop_bytes()
 		value = self.Storage.get(key)
+
+		self.readStorage.append("0x"+hex(key).lstrip("0x").rjust(64,"0"))
+
 		self.Stack._push_byte(value)
 
 	def SSTORE(self):
@@ -514,6 +530,9 @@ class EVM:
 			writes a (u)int256 to storage
 		'''
 		key,value = self.Stack._pop_bytes(2)
+
+		self.writeStorage.append("0x"+hex(key).lstrip("0x").rjust(64,"0"))
+
 		self.Storage.set_key(key,value)
 
 	def JUMP(self):

@@ -15,12 +15,23 @@ def get_time(timestamp):
 	return block_time
 
 class Transaction:
-	From = int("0x5dc12131e65b8f395ab11a2c4e6af717e1b179ba",16)
-	To = int("0xa8f9c7ff9f605f401bde6659fd18d9a0d0a802c5",16)
-	Value = 50000000000000000
-	Input = int("0xfe1f6a0bd579d4fe1e90a03d545e3d8c01dfc19c2ae3b26ad26ba994a1dec89a435a3dc00000000000000000000000000000000000000000000000000000000000000000",16)
-	Timestamp = get_timestamp("2018-08-19 15:05:16 UTC")
+	def __init__(self,tx_hash:str,msg_caller:str,msg_value:int,msg_input:str,timestamp:str):
+		self.tx_hash = tx_hash
+		self.msg_caller = int(msg_caller,16)
+		self.msg_value = msg_value
+		self.msg_input = int(msg_input,16)
+		self.timestamp = get_timestamp(timestamp)
 
-# if __name__ == "__main__":
-# 	print(get_timestamp("2018-08-19 15:05:16 UTC"))
-# 	print(get_time(1534691116))
+	def get(self,key):
+		return self.__dict__[key]
+
+if __name__ == "__main__":
+	tx = Transaction(
+		tx_hash="0xaa8fcdb649889f7f1b63c37f34902650ffb2faedea4b3c6b6630f251f8aedbd8",
+		msg_caller="0x5dc12131e65b8f395ab11a2c4e6af717e1b179ba",
+		msg_value=50000000000000000,
+		msg_input="0xfe1f6a0bd579d4fe1e90a03d545e3d8c01dfc19c2ae3b26ad26ba994a1dec89a435a3dc00000000000000000000000000000000000000000000000000000000000000000",
+		timestamp="2018-08-19 15:05:16 UTC"
+	)
+	
+	print(tx.get("msg_caller"))

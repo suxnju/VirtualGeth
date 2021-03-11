@@ -4,12 +4,6 @@ class Constant:
 	MODULO = 2**256
 	UPPER_UINT256 = 2**256 - 1
 
-	msg_caller = Transaction.From
-	msg_value = Transaction.Value
-	msg_input = Transaction.Input
-	
-	timestamp = Transaction.Timestamp
-
 OPCODE_TO_INSTR  = {
 	"STOP":(0x00,"STOP()","halts execution of the contract"),
 	"ADD":(0x01,"a+b","(u)int256 addition modulo 2**256"),
