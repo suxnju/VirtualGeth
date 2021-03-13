@@ -290,7 +290,7 @@ class EVM:
 			keccak256
 		'''
 		offset,length = self.Stack._pop_bytes(2)
-		to_hash = self.Memory.get(offset,length//32)
+		to_hash = self.Memory.get(offset,length)
 		value = int(keccak256(to_hash,is_hex=True),16)
 		self.Stack._push_byte(value)
 
@@ -490,7 +490,7 @@ class EVM:
 			reads a (u)int256 from memory
 		'''
 		offset = self.Stack._pop_bytes()
-		value = int(self.Memory.get(offset),16)
+		value = int(self.Memory.get(offset,32),16)
 		self.Stack._push_byte(value)
 
 	def MSTORE(self):
@@ -1131,7 +1131,7 @@ class EVM:
 			fires an event
 		'''
 		offset,length,topic0 = self.Stack._pop_bytes(3)
-		value = self.Memory.get(offset,length=length//32)
+		value = self.Memory.get(offset,length=length)
 
 		logging.info(value+hex(topic0).lstrip("0x").rjust(64,"0"))
 
@@ -1142,7 +1142,7 @@ class EVM:
 			fires an event
 		'''
 		offset,length,topic0,topic1 = self.Stack._pop_bytes(4)
-		value = self.Memory.get(offset,length=length//32)
+		value = self.Memory.get(offset,length=length)
 
 		logging.info(value+hex(topic0).lstrip("0x").rjust(64,"0")+hex(topic1).lstrip("0x").rjust(64,"0"))
 
@@ -1154,7 +1154,7 @@ class EVM:
 			fires an event
 		'''
 		offset,length,topic0,topic1,topic2 = self.Stack._pop_bytes(5)
-		value = self.Memory.get(offset,length=length//32)
+		value = self.Memory.get(offset,length=length)
 
 		logging.info(value+hex(topic0).lstrip("0x").rjust(64,"0")+hex(topic1).lstrip("0x").rjust(64,"0")+hex(topic2).lstrip("0x").rjust(64,"0"))
 
@@ -1166,7 +1166,7 @@ class EVM:
 			fires an event
 		'''
 		offset,length,topic0,topic1,topic2,topic3 = self.Stack._pop_bytes(6)
-		value = self.Memory.get(offset,length=length//32)
+		value = self.Memory.get(offset,length=length)
 
 		logging.info(value+hex(topic0).lstrip("0x").rjust(64,"0")+hex(topic1).lstrip("0x").rjust(64,"0")+hex(topic2).lstrip("0x").rjust(64,"0")+hex(topic3).lstrip("0x").rjust(64,"0"))
 
@@ -1208,7 +1208,9 @@ class EVM:
 			success,memory[retOffset:retOffset+retLength]=address(addr).call.gas(gas).value(value)(memory[argsOffset:argsOffset+argsLength]) \\
 			calls a method in another contract
 		'''
-		raise ValueError('Not implement CALL error!')
+		gas,address,value,argsOffset,argsLength,retOffset,retLength = self.Stack._pop_bytes(7)
+		self.Stack._push_byte(1)
+		logging.info("Ignore CALL")
 
 	def CALLCODE(self):
 		'''

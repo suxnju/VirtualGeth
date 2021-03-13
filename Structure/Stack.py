@@ -2,7 +2,7 @@ from typing import List
 
 import json
 class EVM_stack:
-	def __init__(self,stack:List[int]):
+	def __init__(self,stack:List[int]=[]):
 		self.stack = stack
 	
 	def __len__(self) -> int:

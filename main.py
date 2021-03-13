@@ -32,8 +32,8 @@ def execute_init():
     )
 
     evm = EVM(
-        Stack=EVM_stack([]),
-        Memory=EVM_memory({}),
+        Stack=EVM_stack(),
+        Memory=EVM_memory(),
         Storage=EVM_storage({}),
         Transaction=tx_0
     )
@@ -69,8 +69,8 @@ def execute_tx(storage:'EVM_storage',transaction:'Transaction',opcodes:'Dict',DE
         level=logging.INFO
     )
     evm = EVM(
-        Stack=EVM_stack([]),
-        Memory=EVM_memory({}),
+        Stack=EVM_stack(),
+        Memory=EVM_memory(),
         Storage=storage,
         Transaction=transaction
     )
