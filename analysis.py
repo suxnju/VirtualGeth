@@ -111,7 +111,7 @@ def load_group(data_file="./data/game_group.csv") -> 'Dict':
     return group
 
 def load_data(data_file="./data/game_txs.csv") -> 'Transaction':
-    exec_txs = pd.read_csv(data_file,sep=',').sort_values(by=['block_timestamp','transaction_index'],ascending=(True,True,True))
+    exec_txs = pd.read_csv(data_file,sep=',').sort_values(by=['block_timestamp','transaction_index'],ascending=(True,True))
     for row, exec_tx in exec_txs.iterrows():
         if exec_tx['hash'] == "0x79a09f9843b1248b192ea05f36b60686d3ca5bbee7020f7431aed669131516c7": # init has executed
             continue
@@ -147,39 +147,48 @@ def mk_dirs():
         os.makedirs("./log/running")
 
 if __name__ == "__main__":
-    mk_dirs()
-    storage, storage_init = execute_init()
+    # mk_dirs()
+    # storage, storage_init = execute_init()
     
-    storage_modified = {
-        "init":storage_init
-    }
-    opcodes = load_opcodes("./data/game.disassemble")
+    # storage_modified = {
+    #     "init":storage_init
+    # }
+    # opcodes = load_opcodes("./data/game.disassemble")
 
-    for tx in load_data():
-        if tx.get("tx_hash") == "0x8b20e7edcdb9a58a9d7b5fe08795ba0ff11bb8b4e0e1ebffeba03e2e50075681":
-            verbose = True
-        else:
-            verbose = False
-        storage, storage_read_write = execute_tx(
-            storage=storage,
-            transaction=tx,
-            opcodes=opcodes,
-            verbose=verbose
-        )
-        storage_modified[tx.get("tx_hash")] = storage_read_write
-
-        if verbose:            
-            with open("result.json","w",encoding="utf-8") as f:
-                json.dump(storage_modified,f,indent='\t')
-            break
+    # for tx in load_data():
+    #     if tx.get("tx_hash") == "0x8b20e7edcdb9a58a9d7b5fe08795ba0ff11bb8b4e0e1ebffeba03e2e50075681":
+    #         verbose = True
+    #     else:
+    #         verbose = False
+    #     storage, storage_read_write = execute_tx(
+    #         storage=storage,
+    #         transaction=tx,
+    #         opcodes=opcodes,
+    #         verbose=verbose
+    #     )
+    #     storage_modified[tx.get("tx_hash")] = storage_read_write
+       
+    # with open("result.json","w",encoding="utf-8") as f:
+    #     json.dump(storage_modified,f,indent='\t')
     
-    # with open("result.json","r",encoding="utf-8") as f:
-    #     storage_modified = json.load(f)
+    with open("result.json","r",encoding="utf-8") as f:
+        storage_modified = json.load(f)
     
-    # group = load_group()
-    # commons = {}
-    # for groupid in group.keys():
-    #     common_slots = check_common_slot(groupid,group[groupid],storage_modified)
-    #     commons[groupid] = common_slots
+    group = load_group()
+    commons = {}
+    id_list = list(group.keys())
+    for groupid in id_list:
+        common_slots = check_common_slot(groupid,group[groupid],storage_modified)
+        commons[groupid] = common_slots
 
+    for i in range(0,len(id_list)):
+        gameid = id_list[i]
+        for j in range(i+1,len(id_list)):
+            o_gameid = id_list[j]
+
+            commons[gameid] = commons[gameid] - commons[o_gameid]
+        commons[gameid] = list(commons[gameid])
+
+    with open("commons.json","w",encoding="utf-8") as f:
+        json.dump(commons,f,indent='\t')
     print()
